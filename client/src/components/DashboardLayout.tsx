@@ -21,11 +21,12 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BrainCircuit, FolderKanban, LayoutDashboard, LogOut, PanelLeft, Radio, SearchCheck, FileText } from "lucide-react";
+import { BrainCircuit, FolderKanban, LayoutDashboard, LogOut, Moon, PanelLeft, Radio, SearchCheck, FileText, Sun } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
@@ -105,6 +106,7 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (isCollapsed) {
@@ -147,7 +149,7 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r border-slate-200/70 bg-[#fbfbfc]"
+          className="border-r border-slate-200/70 bg-[#fbfbfc] dark:border-slate-800 dark:bg-[#11162a]"
           disableTransition={isResizing}
         >
           <SidebarHeader className="h-20 justify-center">
@@ -162,7 +164,7 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#12172f] text-white shadow-[0_5px_16px_rgb(18_23_47/0.22)]"><BrainCircuit className="h-4 w-4" /></span>
-                  <div className="min-w-0 leading-none"><span className="font-display block truncate text-lg font-semibold tracking-[-0.05em] text-slate-950">Intelis</span><span className="mt-1 block text-[8px] font-bold uppercase tracking-[0.22em] text-violet-600">Research system</span></div>
+                  <div className="min-w-0 leading-none"><span className="font-display block truncate text-lg font-semibold tracking-[-0.05em] text-slate-950 dark:text-white">Intelis</span><span className="mt-1 block text-[8px] font-bold uppercase tracking-[0.22em] text-violet-600">Research system</span></div>
                 </div>
               ) : null}
             </div>
@@ -179,7 +181,7 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={`h-10 rounded-lg border-l-2 transition-all font-medium text-slate-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 data-[active=true]:border-violet-600 data-[active=true]:bg-violet-100/80 data-[active=true]:text-violet-800`}
+                      className={`h-10 rounded-lg border-l-2 transition-all font-medium text-slate-500 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 data-[active=true]:border-violet-600 data-[active=true]:bg-violet-100/80 data-[active=true]:text-violet-800 dark:text-slate-300 dark:hover:bg-violet-950/40 dark:hover:text-violet-200 dark:data-[active=true]:bg-violet-950/70 dark:data-[active=true]:text-violet-100`}
                     >
                       <item.icon
                         className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
@@ -193,6 +195,7 @@ function DashboardLayoutContent({
           </SidebarContent>
 
           <SidebarFooter className="p-3">
+            <Button variant="ghost" onClick={toggleTheme} className="mb-2 h-9 w-full justify-start gap-3 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-violet-50 hover:text-violet-700 dark:text-slate-300 dark:hover:bg-violet-950/40 dark:hover:text-violet-100 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"><>{theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</><span className="group-data-[collapsible=icon]:hidden">{theme === "dark" ? "Light mode" : "Dark mode"}</span></Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -242,6 +245,7 @@ function DashboardLayoutContent({
                 <div className="flex flex-col gap-1"><span className="font-display tracking-[-0.03em] text-foreground">{activeMenuItem?.label ?? "Menu"}</span></div>
               </div>
             </div>
+            <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9 rounded-lg" aria-label="Toggle color mode">{theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</Button>
           </div>
         )}
         <main className="intelis-workspace flex-1 p-4 md:p-7">{children}</main>

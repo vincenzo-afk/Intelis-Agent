@@ -21,3 +21,10 @@
 - [x] Verify live Groq pipeline stage persistence and visible task progress through queued, running, and completed states.
 - [x] Add router-level test coverage for pause, resume, and manual-run task-control behavior.
 - [x] Visually validate dashboard and research-task controls in idle, running, paused, and resumed states.
+- [ ] Add PDF and CSV exports for both Groq research findings and generated reports.
+- [x] Add dashboard search and filters for scheduled research tasks.
+- [x] Verify persisted dark-mode preference and add dark-mode-specific coverage.
+- [ ] Run an explicit dark-mode visual QA pass for export and filter screens.
+- [ ] Inspect GitHub commit attribution and contributor history for the Intelis Agent repository.
+- [ ] Correct any commits not attributed to the user's authorized GitHub identity.
+- [ ] Verify the resulting GitHub contributor history and report the outcome.
