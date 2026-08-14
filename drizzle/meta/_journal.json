@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786640019130,
+      "tag": "0000_strong_caretaker",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1786640697332,
+      "tag": "0001_absurd_grey_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786642733876,
+      "tag": "0002_blue_the_call",
+      "breakpoints": true
+    }
+  ]
+}

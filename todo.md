@@ -1,0 +1,23 @@
+# Project TODO
+
+- [x] Define the schema for research tasks, sources, execution profiles, cron schedules, collections, monitored entities, pipeline runs, findings, reports, conversations, delivery events, and audit logs.
+- [x] Create secure configuration for the user-provided Groq API key and validate its availability without exposing the value.
+- [x] Revalidate the refined Intelis visual system across all main product views after final changes.
+- [x] Implement CRUD operations for natural-language research tasks with source, keyword, topic, and delivery configuration.
+- [x] Implement selectable per-task execution profiles and six-field UTC cron management with persistent scheduled job lifecycle controls.
+- [x] Implement collections and continuous entity following for companies, people, and topics.
+- [x] Complete the multi-agent pipeline with materialized crawling and independent-source corroboration.
+- [x] Add Groq-powered trend synthesis and anomaly analysis across historical entity changes.
+- [x] Implement finding quality metrics, relevance classification, entity extraction, source credibility, and research reports.
+- [x] Persist concrete before-and-after monitored-entity changes across research runs and surface resulting anomalies.
+- [x] Extend semantic Ask Mode retrieval to include accumulated reports as well as findings.
+- [x] Complete summary, digest, and alert report generation with automated in-app and email delivery behavior.
+- [x] Implement the dashboard overview with active tasks, recent findings, trend charts, quality metrics, and pipeline run history.
+- [x] Add focused tests covering schedule validation, pipeline analysis, semantic Ask Mode, and delivery behavior.
+- [x] Validate the refined interface across desktop and mobile breakpoints and push the final GitHub update.
+- [x] Fix research-task cron validation so standard hourly, daily, weekly, and custom schedules can be created without raw validation errors.
+- [x] Replace raw cron entry in the research task form with a time-based schedule picker for hourly, daily, weekly, and custom intervals.
+- [x] Add a live next-run countdown or timing indicator for all scheduled tasks on the dashboard.
+- [x] Verify live Groq pipeline stage persistence and visible task progress through queued, running, and completed states.
+- [x] Add router-level test coverage for pause, resume, and manual-run task-control behavior.
+- [x] Visually validate dashboard and research-task controls in idle, running, paused, and resumed states.
