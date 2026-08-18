@@ -5,37 +5,61 @@ const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 type GroqMessage = { role: "system" | "user" | "assistant"; content: string };
 
-async function groqChat(messages: GroqMessage[], maxTokens = 1400) {
+const GROQ_MAX_ATTEMPTS = 3;
+const GROQ_BASE_DELAY_MS = 1500;
+
+async function groqChatWithRetry(messages: GroqMessage[], maxTokens: number): Promise<Record<string, unknown>> {
   if (!process.env.GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY is not configured");
   }
 
-  const response = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      temperature: 0.15,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" },
-      messages,
-    }),
-  });
+  let lastFailure: string = "";
+  for (let attempt = 1; attempt <= GROQ_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          temperature: 0.15,
+          max_tokens: maxTokens,
+          response_format: { type: "json_object" },
+          messages,
+        }),
+      });
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Groq request failed (${response.status}): ${detail.slice(0, 360)}`);
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        const retryable = response.status >= 429 || response.status >= 500;
+        lastFailure = `Groq request failed (${response.status}): ${detail.slice(0, 360)}`;
+        if (!retryable || attempt === GROQ_MAX_ATTEMPTS) throw new Error(lastFailure);
+      } else {
+        const payload = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string | null } }>;
+        };
+        const content = payload.choices?.[0]?.message?.content;
+        if (!content) throw new Error("Groq returned an empty response");
+        try {
+          return JSON.parse(content) as Record<string, unknown>;
+        } catch {
+          lastFailure = "Groq returned a response that could not be parsed as JSON";
+          throw new Error(lastFailure);
+        }
+      }
+    } catch (error) {
+      lastFailure = error instanceof Error ? error.message : "Unknown Groq failure";
+      if (attempt === GROQ_MAX_ATTEMPTS) throw new Error(lastFailure);
+    }
+    await new Promise(resolve => setTimeout(resolve, GROQ_BASE_DELAY_MS * Math.pow(2, attempt - 1)));
   }
+  throw new Error(lastFailure || "Groq request failed after retries");
+}
 
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | null } }>;
-  };
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Groq returned an empty response");
-  return JSON.parse(content) as Record<string, unknown>;
+async function groqChat(messages: GroqMessage[], maxTokens = 1400) {
+  return groqChatWithRetry(messages, maxTokens);
 }
 
 function boundedScore(value: unknown, fallback: number) {

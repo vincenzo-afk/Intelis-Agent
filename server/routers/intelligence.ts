@@ -101,11 +101,29 @@ export const intelligenceRouter = router({
       return { task, scheduleState: task.scheduleCronTaskUid ? "active" as const : "needs_activation" as const };
     }),
     update: protectedProcedure.input(z.object({ id: z.number().int().positive(), values: taskInput.partial() })).mutation(async ({ ctx, input }) => {
-      await getOwnedTask(input.id, ctx.user.id);
+      const existing = await getOwnedTask(input.id, ctx.user.id);
       const db = await requireDb();
       const values = { ...input.values, collectionId: input.values.collectionId === undefined ? undefined : input.values.collectionId ?? null };
       await db.update(researchTasks).set(values).where(and(eq(researchTasks.id, input.id), eq(researchTasks.userId, ctx.user.id)));
-      return getOwnedTask(input.id, ctx.user.id);
+      const updated = await getOwnedTask(input.id, ctx.user.id);
+      // Keep the scheduled heartbeat job in sync when the schedule, status, or name changes.
+      if (updated.scheduleCronTaskUid && (values.cronExpression !== undefined || values.name !== undefined || (input.values as Record<string, unknown>).status !== undefined)) {
+        try {
+          const job = await updateHeartbeatJob(
+            updated.scheduleCronTaskUid,
+            {
+              cron: updated.cronExpression,
+              enable: updated.status === "active",
+              description: `Intelis research task: ${updated.name}`,
+            },
+            sessionToken(ctx.req.headers.cookie)
+          );
+          await updateTaskSchedule(updated.id, updated.scheduleCronTaskUid, job.nextExecutionAt ? new Date(job.nextExecutionAt) : null);
+        } catch (error) {
+          console.warn("[Intelligence] Failed to sync heartbeat job on task update:", error);
+        }
+      }
+      return updated;
     }),
     remove: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const task = await getOwnedTask(input.id, ctx.user.id);

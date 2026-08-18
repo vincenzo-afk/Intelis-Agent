@@ -1,10 +1,20 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deriveTaskSignals, rankKnowledgeCandidates, synthesizeDigest, synthesizeTrendAnalysis } from "./groq";
 
 const originalFetch = globalThis.fetch;
+const originalGroqApiKey = process.env.GROQ_API_KEY;
+
+beforeEach(() => {
+  process.env.GROQ_API_KEY = originalGroqApiKey ?? "fake-groq-api-key-for-testing";
+});
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+});
+
+afterAll(() => {
+  if (originalGroqApiKey === undefined) delete process.env.GROQ_API_KEY;
+  else process.env.GROQ_API_KEY = originalGroqApiKey;
 });
 
 function mockGroqJson(payload: Record<string, unknown>) {
