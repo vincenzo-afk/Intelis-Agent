@@ -47,11 +47,34 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
+// Resolve the client build directory across environments. In development the
+// build lives at <repo>/dist/public. When the server is bundled (esbuild) and
+// run from a different working directory — e.g. Vercel's /var/task — the entry
+// file's own folder no longer points at the right place, so we probe a small
+// list of candidate paths and pick the first one that actually exists.
+function resolveDistPath(): string {
+  const candidates = [
+    // Bundled server running from its own folder (Vercel @vercel/node, where
+    // the build output and this file sit side by side).
+    path.resolve(import.meta.dirname, "public"),
+    // Classic layout when run with tsx or node from the repo root.
+    path.resolve(import.meta.dirname, "..", "..", "dist", "public"),
+    // Fallback: the repo root relative to the current working directory.
+    path.resolve(process.cwd(), "dist", "public"),
+  ];
+
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  return candidates[0];
+}
+
 export function serveStatic(app: Express) {
-  const distPath =
-    process.env.NODE_ENV === "development"
-      ? path.resolve(import.meta.dirname, "../..", "dist", "public")
-      : path.resolve(import.meta.dirname, "public");
+  const distPath = resolveDistPath();
   if (!fs.existsSync(distPath)) {
     console.error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
@@ -62,6 +85,13 @@ export function serveStatic(app: Express) {
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res.sendFile(path.resolve(distPath, "index.html"), err => {
+      if (err) {
+        // The client build is missing — surface it instead of a silent 404
+        console.error(
+          `[static] Failed to send index.html from ${distPath}: ${err.message}`
+        );
+      }
+    });
   });
 }
