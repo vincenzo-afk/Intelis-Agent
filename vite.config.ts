@@ -165,7 +165,11 @@ export default defineConfig({
   root: path.resolve(import.meta.dirname, "client"),
   publicDir: path.resolve(import.meta.dirname, "client", "public"),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    // The client build is written to the repo-level `public/` directory. Vite
+    // clears the folder before each build, and the server resolves it as its
+    // static root. On Vercel the Express preset also serves `public/**` from
+    // the CDN, so this single location covers local runs and hosting.
+    outDir: path.resolve(import.meta.dirname, "public"),
     emptyOutDir: true,
   },
   server: {

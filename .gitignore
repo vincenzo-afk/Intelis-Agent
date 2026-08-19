@@ -111,4 +111,7 @@ temp/
 
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
+
+# Vite client build output (written to repo-root public/ by `pnpm build`)
+public/
 .project-config.json

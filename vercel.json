@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "builds": [
+  "headers": [
     {
-      "src": "dist/index.js",
-      "use": "@vercel/node",
-      "config": { "includeFiles": ["dist/**", "attached_assets/**", "client-dist/**"] }
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "dist/index.js" }
-  ],
-  "buildCommand": "pnpm build"
+  ]
 }

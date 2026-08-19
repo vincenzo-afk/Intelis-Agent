@@ -54,12 +54,14 @@ export async function setupVite(app: Express, server: Server) {
 // list of candidate paths and pick the first one that actually exists.
 function resolveDistPath(): string {
   const candidates = [
-    // Bundled server running from its own folder (Vercel @vercel/node, where
-    // the build output and this file sit side by side).
+    // The client build sits at the repo root `public/` directory. That is where
+    // Vite writes its output (`vite build` outDir) and where Vercel's Express
+    // preset serves static assets from its CDN.
+    path.resolve(process.cwd(), "public"),
+    // Bundled server running from its own folder — public sits next to it.
     path.resolve(import.meta.dirname, "public"),
-    // Classic layout when run with tsx or node from the repo root.
+    // Older layout: build output under dist/public.
     path.resolve(import.meta.dirname, "..", "..", "dist", "public"),
-    // Fallback: the repo root relative to the current working directory.
     path.resolve(process.cwd(), "dist", "public"),
   ];
 
