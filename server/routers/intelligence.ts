@@ -88,15 +88,22 @@ export const intelligenceRouter = router({
       const taskId = Number(result[0].insertId);
       let task = await getOwnedTask(taskId, ctx.user.id);
       if (process.env.NODE_ENV === "production") {
-        const job = await createHeartbeatJob({
-          name: `intelis-task-${task.id}`,
-          cron: task.cronExpression,
-          path: "/api/scheduled/research-run",
-          payload: {},
-          description: `Intelis research task: ${task.name}`,
-        }, sessionToken(ctx.req.headers.cookie));
-        await updateTaskSchedule(task.id, job.taskUid, job.nextExecutionAt ? new Date(job.nextExecutionAt) : null);
-        task = await getOwnedTask(taskId, ctx.user.id);
+        try {
+          const job = await createHeartbeatJob({
+            name: `intelis-task-${task.id}`,
+            cron: task.cronExpression,
+            path: "/api/scheduled/research-run",
+            payload: {},
+            description: `Intelis research task: ${task.name}`,
+          }, sessionToken(ctx.req.headers.cookie));
+          await updateTaskSchedule(task.id, job.taskUid, job.nextExecutionAt ? new Date(job.nextExecutionAt) : null);
+          task = await getOwnedTask(taskId, ctx.user.id);
+        } catch (error) {
+          // Scheduling services (e.g. the platform heartbeat) may not be available on
+          // every host (self-hosted or third-party deployments). The task still works
+          // perfectly for manual runs; mark it so the UI can show "needs activation".
+          console.warn("[Intelligence] Scheduling service unavailable; task created without a cron job:", error);
+        }
       }
       return { task, scheduleState: task.scheduleCronTaskUid ? "active" as const : "needs_activation" as const };
     }),
@@ -127,7 +134,7 @@ export const intelligenceRouter = router({
     }),
     remove: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const task = await getOwnedTask(input.id, ctx.user.id);
-      if (task.scheduleCronTaskUid) await deleteHeartbeatJob(task.scheduleCronTaskUid, sessionToken(ctx.req.headers.cookie));
+      if (task.scheduleCronTaskUid) { try { await deleteHeartbeatJob(task.scheduleCronTaskUid, sessionToken(ctx.req.headers.cookie)); } catch (error) { console.warn("[Intelligence] Failed to delete heartbeat job:", error); } }
       const db = await requireDb();
       await db.delete(researchTasks).where(and(eq(researchTasks.id, task.id), eq(researchTasks.userId, ctx.user.id)));
       return { success: true };
@@ -147,7 +154,13 @@ export const intelligenceRouter = router({
     }),
     pause: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const task = await getOwnedTask(input.id, ctx.user.id);
-      if (task.scheduleCronTaskUid) await updateHeartbeatJob(task.scheduleCronTaskUid, { enable: false }, sessionToken(ctx.req.headers.cookie));
+      if (task.scheduleCronTaskUid) {
+        try {
+          await updateHeartbeatJob(task.scheduleCronTaskUid, { enable: false }, sessionToken(ctx.req.headers.cookie));
+        } catch (error) {
+          console.warn("[Intelligence] Failed to pause heartbeat job:", error);
+        }
+      }
       const db = await requireDb();
       await db.update(researchTasks).set({ status: "paused", nextRunAt: null }).where(eq(researchTasks.id, task.id));
       return getOwnedTask(task.id, ctx.user.id);
@@ -155,8 +168,12 @@ export const intelligenceRouter = router({
     resume: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const task = await getOwnedTask(input.id, ctx.user.id);
       if (task.scheduleCronTaskUid) {
-        const job = await updateHeartbeatJob(task.scheduleCronTaskUid, { enable: true, cron: task.cronExpression, description: `Intelis research task: ${task.name}` }, sessionToken(ctx.req.headers.cookie));
-        await updateTaskSchedule(task.id, task.scheduleCronTaskUid, job.nextExecutionAt ? new Date(job.nextExecutionAt) : null);
+        try {
+          const job = await updateHeartbeatJob(task.scheduleCronTaskUid, { enable: true, cron: task.cronExpression, description: `Intelis research task: ${task.name}` }, sessionToken(ctx.req.headers.cookie));
+          await updateTaskSchedule(task.id, task.scheduleCronTaskUid, job.nextExecutionAt ? new Date(job.nextExecutionAt) : null);
+        } catch (error) {
+          console.warn("[Intelligence] Failed to resume heartbeat job:", error);
+        }
       }
       const db = await requireDb();
       await db.update(researchTasks).set({ status: "active" }).where(eq(researchTasks.id, task.id));
