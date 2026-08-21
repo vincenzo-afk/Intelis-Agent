@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible defect in Intelis-Agent.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search existing issues first. Do not include API keys, session tokens, private source material, or production data.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and the expected behavior.
+      placeholder: Tell us what you expected and what occurred instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: List the smallest sequence of steps that reproduces the problem.
+      placeholder: |
+        1. Create a task with ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or deployment version
+      description: Provide the commit SHA or deployment URL when available.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include browser, operating system, Node.js version, and deployment platform as applicable.
+      placeholder: Ubuntu 24.04, Node.js 22, Chromium, self-hosted
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste redacted logs or error messages. Remove credentials and personal data.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I removed secrets and private data from this report.
+          required: true

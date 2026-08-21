@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-describe("Groq credential", () => {
+describe.skipIf(!process.env.GROQ_API_KEY)("Groq credential", () => {
   it("authenticates against Groq's model catalog", async () => {
     const apiKey = process.env.GROQ_API_KEY;
     expect(apiKey).toBeTruthy();

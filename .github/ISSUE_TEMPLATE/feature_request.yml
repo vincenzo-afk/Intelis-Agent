@@ -1,0 +1,45 @@
+name: Feature request
+description: Propose a focused improvement to Intelis-Agent.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search existing issues first. Do not include private data, credentials, or confidential research material.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What user or maintainer problem would this feature address?
+      placeholder: Describe the workflow that is currently difficult or impossible.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the smallest useful version of the change.
+      placeholder: Describe the intended user experience or API behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or alternative designs have you considered?
+  - type: textarea
+    id: considerations
+    attributes:
+      label: Additional considerations
+      description: Note compatibility, database, integration, performance, or security implications.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I removed secrets and private data from this request.
+          required: true
