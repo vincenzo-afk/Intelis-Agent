@@ -1,6 +1,6 @@
 # Intelis-Agent
 
-> A self-running research intelligence workspace that turns scheduled web monitoring into verified, traceable reports.
+> A self-running research agent that monitors the web on a schedule, verifies findings with LLM analysis, and delivers intelligence reports by email and in-app.
 
 [![CI](https://github.com/vincenzo-afk/Intelis-Agent/actions/workflows/ci.yml/badge.svg)](https://github.com/vincenzo-afk/Intelis-Agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -12,14 +12,14 @@
 
 ## <a name="toc"></a>Table of Contents
 
-- [About the Project](#about)
+- [About Intelis-Agent](#about)
 - [Architecture](#architecture)
 - [Tech Stack](#stack)
 - [Getting Started](#started)
 - [Usage](#usage)
 - [API Reference](#api)
 - [Project Structure](#structure)
-- [Features and Roadmap](#features)
+- [Features and Limitations](#features)
 - [Testing](#testing)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
@@ -30,88 +30,85 @@
 
 ---
 
-## <a name="about"></a>About the Project
+## <a name="about"></a>About Intelis-Agent
 
-Intelis-Agent is a full-stack research intelligence application. A user describes a research objective in natural language, selects web, RSS, or NewsAPI sources, and assigns a valid five- or six-field cron expression. The application collects candidate material, fetches and cleans source content, removes duplicates, asks a large language model (LLM) to analyze the supplied material, persists scored findings, and generates reports for the dashboard. Scheduled execution is paired with a manual `Run now` path so the core research flow remains useful even when an external scheduling service is unavailable.
+Intelis-Agent is a full-stack research application. A user describes a research objective in natural language, selects one or more implemented sources, and configures a five- or six-field cron expression. The server stores the task, collects candidate material, processes the research pipeline, persists findings and run state, and creates intelligence reports.
 
-The application is designed around **traceability rather than unsupported synthesis**. Findings retain source URLs, source names, excerpts, confidence-related scores, and verification status. Ask Mode retrieves stored findings and returns answers with citations to the findings used. The database also stores research runs, per-stage state, trends, reports, delivery events, and audit records.
+The application is built around traceable findings. Each finding can retain its source URL, source name, excerpt, summary, quality score, relevance score, credibility score, novelty score, and verification status. Ask Mode queries stored findings and returns citations for the records used in the answer.
 
-### Key capabilities
+### Implemented capabilities
 
-- Define research tasks using a natural-language request, optional keywords, topics, source filters, and a cron schedule.
-- Collect material from web search, RSS feeds, and NewsAPI when the corresponding source is enabled.
-- Process each run through search, crawl, scrape, clean, deduplicate, analyze, summarize, format, and delivery stages.
-- Score findings for quality, relevance, credibility, and novelty, while recording `verified`, `partially_verified`, or `unverified` status.
-- Track followed companies, people, and topics and persist trend and change events between runs.
-- Generate summary, digest, and alert reports and record in-app and email delivery events.
-- Ask grounded questions over stored findings and receive source-linked citations.
-- Export reports as PDF and research findings as CSV from the client application.
-
-### Screenshots and visual documentation
-
-The repository does not currently contain committed screenshots. The public interface is available through the [live demo](https://intelis-agent.vercel.app). A future contribution may add screenshots under `docs/` with descriptive alt text and reproducible capture instructions.
+- Natural-language research tasks with optional keywords, topics, filters, source selection, and scheduled execution.
+- Web, RSS, and NewsAPI source collection implemented in `server/intelis/sources.ts`.
+- LLM-backed task-signal derivation, finding analysis, report synthesis, semantic retrieval, and Ask Mode through Groq’s `llama-3.3-70b-versatile` model.
+- Persisted research runs, stage state, findings, source snapshots, trends, reports, delivery events, and audit logs.
+- Manual `Run now` execution, task pause/resume controls, and scheduler activation handling.
+- Summary, digest, and alert reports with in-app notifications and optional Resend email delivery.
+- Followed entities for companies, people, and topics, with change events and trend analysis.
+- Client-side PDF and CSV export utilities, task filtering, collections, and theme preferences.
 
 ## <a name="architecture"></a>Architecture
 
 ```mermaid
 flowchart LR
   UI[React + Vite client]
-  API[Express server + tRPC router]
+  API[Express + tRPC server]
   AUTH[OAuth-backed JWT sessions]
-  AGENT[Research pipeline]
-  SOURCES[Web / RSS / NewsAPI]
-  LLM[Groq llama-3.3-70b-versatile]
+  PIPE[Research pipeline]
+  SRC[Web / RSS / NewsAPI]
+  LLM[Groq LLM]
   DB[(MySQL + Drizzle ORM)]
-  MAIL[Resend email delivery]
-  SCHED[Heartbeat scheduler]
+  EMAIL[Resend]
+  CRON[Heartbeat scheduler]
 
   UI --> API
   API --> AUTH
   API --> DB
-  API --> AGENT
-  SCHED -->|POST /api/scheduled/research-run| AGENT
-  AGENT --> SOURCES
-  AGENT --> LLM
-  AGENT --> DB
-  AGENT --> MAIL
+  API --> PIPE
+  CRON -->|POST /api/scheduled/research-run| PIPE
+  PIPE --> SRC
+  PIPE --> LLM
+  PIPE --> DB
+  PIPE --> EMAIL
 ```
 
-The server entry point is `server/_core/index.ts`. It registers JSON and URL-encoded body parsers, OAuth callback handling, the storage proxy, the cron-only research endpoint, and the tRPC adapter at `/api/trpc`. Development mode uses Vite middleware; production mode serves the built client from the server process.
+The application entry point is `server/_core/index.ts`. It registers the Express body parsers, OAuth callback, storage proxy, scheduled research endpoint, and tRPC router at `/api/trpc`. Development mode uses Vite middleware. Production mode serves the client build from the server process.
 
 ## <a name="stack"></a>Tech Stack
 
-| Area             | Technology                                               | Version or evidence                                               |
-| ---------------- | -------------------------------------------------------- | ----------------------------------------------------------------- |
-| Client           | React, React DOM                                         | `19.2.1`                                                          |
-| Client tooling   | Vite, Tailwind CSS                                       | `7.1.7`, `4.1.14`                                                 |
-| UI               | Radix UI primitives, shadcn/ui conventions, Lucide React | Declared in `package.json`                                        |
-| Language         | TypeScript                                               | `5.9.3`                                                           |
-| Server           | Express                                                  | `4.21.2`                                                          |
-| API              | tRPC client/server, Zod validation                       | `11.6.0`, `4.1.12`                                                |
-| Database         | MySQL via `mysql2`, Drizzle ORM and Drizzle Kit          | `3.15.0`, `0.44.5`, `0.31.4`                                      |
-| LLM analysis     | Groq OpenAI-compatible chat completions                  | `llama-3.3-70b-versatile` in `server/intelis/groq.ts`             |
-| Research sources | Web search, RSS, NewsAPI                                 | Implemented in `server/intelis/sources.ts`                        |
-| Email            | Resend                                                   | Used by the notification and pipeline layers                      |
-| Object storage   | AWS S3 presigned URLs                                    | `@aws-sdk/client-s3` `3.693.0`                                    |
-| Authentication   | OAuth-backed identity plus HS256 JWT session cookies     | Implemented in `server/_core/sdk.ts`                              |
-| Client exports   | `pdf-lib` and CSV export utilities                       | `1.17.1` and `client/src/lib/researchExport.ts`                   |
-| Tests            | Vitest                                                   | `2.1.4`                                                           |
-| Package manager  | pnpm                                                     | Lockfile package manager: `10.4.1`; project dependency: `10.15.1` |
+| Area             | Technology                                            | Version or source                     |
+| ---------------- | ----------------------------------------------------- | ------------------------------------- |
+| Frontend         | React and React DOM                                   | `19.2.1`                              |
+| Frontend tooling | Vite                                                  | `7.1.7`                               |
+| Styling          | Tailwind CSS                                          | `4.1.14`                              |
+| Language         | TypeScript                                            | `5.9.3`                               |
+| Server           | Express                                               | `4.21.2`                              |
+| API              | tRPC                                                  | `11.6.0`                              |
+| Validation       | Zod                                                   | `4.1.12`                              |
+| Database         | MySQL through `mysql2`; Drizzle ORM                   | `3.15.0`; `0.44.5`                    |
+| LLM provider     | Groq chat completions                                 | `llama-3.3-70b-versatile`             |
+| Sources          | Web search, RSS, NewsAPI                              | `server/intelis/sources.ts`           |
+| Email            | Resend                                                | Pipeline and notification integration |
+| Storage          | AWS S3 presigned URLs                                 | `@aws-sdk/client-s3` `3.693.0`        |
+| Authentication   | OAuth identity synchronization and HS256 JWT sessions | `server/_core/sdk.ts`                 |
+| Testing          | Vitest                                                | `2.1.4`                               |
+| Package manager  | pnpm                                                  | `10.4.1` from `package.json`          |
 
 ## <a name="started"></a>Getting Started
 
 ### Prerequisites
 
-Use a current **Node.js 22** release and [pnpm](https://pnpm.io/installation). The repository’s lockfile and CI workflow use pnpm. Local development also requires a reachable MySQL-compatible database and credentials for the integrations you intend to use.
+Use Node.js 22 and pnpm. Node.js 22 is the runtime validated by the repository’s CI workflow. Local development also requires a reachable MySQL-compatible database and credentials for the integrations used by your environment.
 
-| Requirement                              | Used for                                                                         | Required when                                  |
-| ---------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------- |
-| MySQL-compatible database                | Users, tasks, runs, findings, reports, conversations, deliveries, and audit logs | Running the application or database migrations |
-| `GROQ_API_KEY`                           | Signal derivation, finding analysis, report generation, retrieval, and Ask Mode  | Creating or processing research tasks          |
-| `JWT_SECRET`                             | Signing and verifying session JWTs                                               | Authenticated application use                  |
-| `NEWS_API_KEY`                           | NewsAPI source collection                                                        | Using the `news_api` source                    |
-| `RESEND_API_KEY` and `RESEND_FROM_EMAIL` | Email report delivery                                                            | Enabling email delivery                        |
-| Manus OAuth configuration                | User identity synchronization and platform login                                 | Deploying in the Manus environment             |
+| Requirement                              | Purpose                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| MySQL-compatible database                | Stores users, tasks, runs, findings, reports, conversations, deliveries, and audit records. |
+| `DATABASE_URL`                           | Database connection URL.                                                                    |
+| `JWT_SECRET`                             | Session signing and verification.                                                           |
+| `GROQ_API_KEY`                           | LLM-backed task analysis, finding analysis, reports, retrieval, and Ask Mode.               |
+| `NEWS_API_KEY`                           | NewsAPI source collection.                                                                  |
+| `RESEND_API_KEY` and `RESEND_FROM_EMAIL` | Optional email report delivery.                                                             |
+| Manus platform variables                 | OAuth, heartbeat, and owner-notification integration in that hosting environment.           |
 
 ### Installation
 
@@ -122,13 +119,13 @@ pnpm install
 cp .env.example .env
 ```
 
-Edit `.env` with values for the variables in the configuration table below. Generate a development secret with:
+Generate a development secret with:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Apply the Drizzle migrations using the repository script:
+Apply the database migrations with the repository’s script:
 
 ```bash
 pnpm db:push
@@ -136,26 +133,28 @@ pnpm db:push
 
 ### Configuration
 
-The repository includes `.env.example` as a safe template. Do not commit `.env` or real credentials.
+The complete template is in `.env.example`. Never commit `.env`, session tokens, API keys, or database credentials.
 
 <details>
-<summary>Environment variable reference</summary>
+<summary>Environment variables</summary>
 
-| Variable                 | Required                         | Description                                                                                   |
-| ------------------------ | -------------------------------- | --------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`           | Yes for database-backed use      | MySQL connection URL consumed by Drizzle and `mysql2`.                                        |
-| `GROQ_API_KEY`           | Required for LLM-backed features | Server-side credential for Groq chat completions.                                             |
-| `NEWS_API_KEY`           | Required for NewsAPI             | Credential for the NewsAPI source.                                                            |
-| `RESEND_API_KEY`         | Required for email delivery      | Credential for Resend.                                                                        |
-| `RESEND_FROM_EMAIL`      | Required for email delivery      | Verified sender address used by Resend.                                                       |
-| `JWT_SECRET`             | Required for sessions            | Secret used to sign HS256 session tokens.                                                     |
-| `PORT`                   | Optional                         | Preferred server port; defaults to `3000`, then the server searches the next available ports. |
-| `NODE_ENV`               | Optional                         | `development` enables Vite middleware; other values use production static serving.            |
-| `VITE_APP_ID`            | Manus environment                | Application identifier included in sessions.                                                  |
-| `OAUTH_SERVER_URL`       | Manus environment                | OAuth server base URL used for identity synchronization.                                      |
-| `OWNER_OPEN_ID`          | Manus environment                | Owner identity used by platform-specific functionality.                                       |
-| `BUILT_IN_FORGE_API_URL` | Manus environment                | Platform heartbeat and notification API base URL.                                             |
-| `BUILT_IN_FORGE_API_KEY` | Manus environment                | Platform heartbeat and notification credential.                                               |
+| Variable                    | Required                       | Description                                                                          |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------------------------------ |
+| `DATABASE_URL`              | Yes for database-backed use    | MySQL connection URL consumed by Drizzle.                                            |
+| `JWT_SECRET`                | Yes for authenticated use      | Secret used to sign HS256 session tokens.                                            |
+| `GROQ_API_KEY`              | For LLM-backed features        | Server-side Groq credential.                                                         |
+| `NEWS_API_KEY`              | For NewsAPI source use         | NewsAPI credential.                                                                  |
+| `RESEND_API_KEY`            | For email delivery             | Resend credential.                                                                   |
+| `RESEND_FROM_EMAIL`         | For email delivery             | Verified sender address for Resend.                                                  |
+| `PORT`                      | Optional                       | Preferred server port; defaults to `3000` and searches subsequent ports if occupied. |
+| `NODE_ENV`                  | Optional                       | `development` enables Vite middleware; production mode serves static files.          |
+| `VITE_APP_ID`               | Manus environment              | Application identifier used by the platform identity flow.                           |
+| `OAUTH_SERVER_URL`          | Manus environment              | OAuth server base URL.                                                               |
+| `OWNER_OPEN_ID`             | Manus environment              | Platform owner identity.                                                             |
+| `BUILT_IN_FORGE_API_URL`    | Manus environment              | Platform heartbeat and notification API URL.                                         |
+| `BUILT_IN_FORGE_API_KEY`    | Manus environment              | Platform heartbeat and notification API key.                                         |
+| `VITE_ANALYTICS_ENDPOINT`   | Optional client template value | Analytics script base URL referenced by `client/index.html`.                         |
+| `VITE_ANALYTICS_WEBSITE_ID` | Optional client template value | Analytics website identifier referenced by `client/index.html`.                      |
 
 </details>
 
@@ -165,7 +164,7 @@ The repository includes `.env.example` as a safe template. Do not commit `.env` 
 pnpm dev
 ```
 
-The server reports the selected local URL. The default preferred URL is `http://localhost:3000/`; if that port is occupied, the server checks subsequent ports.
+The server prefers `http://localhost:3000/`. If that port is occupied, it checks the next available ports.
 
 For a production-style local run:
 
@@ -176,56 +175,45 @@ pnpm start
 
 ## <a name="usage"></a>Usage
 
-After signing in, create a research task from the dashboard. Provide a name and a natural-language request of at least 12 characters, select at least one source, choose the `scheduled` or `high_throughput` execution profile, and enter a valid five- or six-field cron expression. For example:
+After authentication, create a research task from the dashboard. The task input supports a name, a natural-language request, at least one source, optional keywords and topics, source filters, a cron expression, an execution profile, and optional email delivery.
+
+A research request can be written in plain language, for example:
 
 ```text
-Monitor developments in open-weight language models released during the past week, with emphasis on 70B-scale models and benchmark performance.
+Monitor changes in open-weight language models released during the past week, focusing on benchmark performance and model size.
 ```
 
-A task may include up to 15 keywords, 10 topics, 20 included source filters, and 20 excluded source filters. The UI can derive keywords and topics through the configured Groq model when they are not supplied explicitly. A task can be run immediately with **Run now**, paused, resumed, updated, or removed.
+The task router validates the request with Zod. It accepts `web`, `rss`, and `news_api` sources; `scheduled` and `high_throughput` execution profiles; and five- or six-field cron expressions. Tasks can be run immediately, paused, resumed, updated, or removed.
 
-For questions over accumulated research, open Ask Mode and ask a question such as:
-
-> Which entities appeared across multiple findings, and what evidence supports that pattern?
-
-Ask Mode ranks stored findings, asks the LLM to answer only from the selected records, and returns citation objects containing the finding ID, title, and source URL.
+Ask Mode answers questions from stored findings rather than from an unrestricted prompt. Responses include citations containing the finding ID, title, and source URL.
 
 ## <a name="api"></a>API Reference
 
-The application exposes a tRPC router at `/api/trpc`. Procedures marked `protectedProcedure` require a valid session. The server accepts the session cookie configured by `COOKIE_NAME` and also supports an `Authorization: Bearer <session-token>` fallback for environments where browser cookies are unavailable.
+The API is a tRPC router mounted at `/api/trpc`. Protected procedures require a valid authenticated session. The server accepts the session cookie and an `Authorization: Bearer` fallback for environments where cookies are unavailable.
 
 ### tRPC procedures
 
-| Procedure                                          | Access                   | Purpose                                                                 |
-| -------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------- |
-| `system.health`                                    | Public query             | Returns `{ ok: true }` after validating a non-negative timestamp input. |
-| `system.me`                                        | Public query             | Returns the current session identity through the application context.   |
-| `system.logout`                                    | Public mutation          | Clears the session cookie.                                              |
-| `intelligence.dashboard`                           | Protected query          | Returns dashboard metrics, tasks, findings, runs, and trends.           |
-| `intelligence.tasks.list`                          | Protected query          | Lists the caller’s research tasks.                                      |
-| `intelligence.tasks.activity`                      | Protected query          | Lists active task runs.                                                 |
-| `intelligence.tasks.create`                        | Protected mutation       | Creates and optionally schedules a research task.                       |
-| `intelligence.tasks.update`                        | Protected mutation       | Updates task values and synchronizes an existing scheduled job.         |
-| `intelligence.tasks.remove`                        | Protected mutation       | Deletes an owned task and its scheduled job when present.               |
-| `intelligence.tasks.activateSchedule`              | Protected mutation       | Creates or enables the production scheduler job.                        |
-| `intelligence.tasks.pause` / `resume`              | Protected mutation       | Pauses or resumes a task and its scheduler job.                         |
-| `intelligence.tasks.runNow`                        | Protected mutation       | Runs the research pipeline immediately.                                 |
-| `intelligence.collections.list` / `create`         | Protected query/mutation | Lists or creates research collections.                                  |
-| `intelligence.entities.list` / `create` / `toggle` | Protected query/mutation | Manages followed companies, people, and topics.                         |
-| `intelligence.reports.list`                        | Protected query          | Lists the most recent reports owned by the caller.                      |
-| `intelligence.ask.query`                           | Protected mutation       | Answers a question over stored findings and returns citations.          |
+| Procedure                                          | Access                   | Purpose                                                               |
+| -------------------------------------------------- | ------------------------ | --------------------------------------------------------------------- |
+| `system.health`                                    | Public query             | Validates a timestamp input and returns `{ ok: true }`.               |
+| `system.me`                                        | Public query             | Returns the current session identity through the application context. |
+| `system.logout`                                    | Public mutation          | Clears the session cookie.                                            |
+| `intelligence.dashboard`                           | Protected query          | Returns dashboard metrics, tasks, findings, runs, and trends.         |
+| `intelligence.tasks.list` / `activity`             | Protected query          | Lists tasks or active task runs owned by the caller.                  |
+| `intelligence.tasks.create` / `update` / `remove`  | Protected mutation       | Creates, updates, or removes owned research tasks.                    |
+| `intelligence.tasks.activateSchedule`              | Protected mutation       | Creates or enables the production scheduler job.                      |
+| `intelligence.tasks.pause` / `resume`              | Protected mutation       | Pauses or resumes a task and its scheduler job.                       |
+| `intelligence.tasks.runNow`                        | Protected mutation       | Runs the research pipeline immediately.                               |
+| `intelligence.collections.list` / `create`         | Protected query/mutation | Lists or creates research collections.                                |
+| `intelligence.entities.list` / `create` / `toggle` | Protected query/mutation | Manages followed companies, people, and topics.                       |
+| `intelligence.reports.list`                        | Protected query          | Lists recent reports owned by the caller.                             |
+| `intelligence.ask.query`                           | Protected mutation       | Answers a question over stored findings and returns citations.        |
 
 ### Scheduled research endpoint
 
-`POST /api/scheduled/research-run` is not a browser-facing trigger. It authenticates the request, requires a cron identity with a task UID, looks up the associated task, and returns HTTP `403` for non-cron callers. Inactive or orphaned jobs return a successful skipped response rather than starting a run.
+`POST /api/scheduled/research-run` is reserved for authenticated scheduler callbacks. The handler requires a cron identity and task UID, returns `403` to non-cron callers, skips inactive or orphaned tasks, and starts the research pipeline for valid scheduled tasks.
 
-```bash
-curl -X POST https://your-host.example/api/scheduled/research-run \
-  -H 'Authorization: Bearer <scheduler-session-token>' \
-  -H 'Content-Type: application/json'
-```
-
-The scheduler token is deployment-specific and must never be committed to the repository or exposed in client-side code.
+The scheduler credential is deployment-specific. Keep it in the hosting platform’s secret manager and never expose it in client code.
 
 ## <a name="structure"></a>Project Structure
 
@@ -234,73 +222,65 @@ The scheduler token is deployment-specific and must never be committed to the re
 
 ```text
 Intelis-Agent/
-├── client/
-│   ├── public/
-│   └── src/                 # React pages, components, styles, exports, and tests
+├── client/                 # React client, pages, components, styles, and exports
 ├── server/
-│   ├── _core/               # Express bootstrap, tRPC context, auth, storage, Vite, and platform adapters
-│   ├── intelis/              # Sources, Groq analysis, pipeline, scheduling, repository, and validators
-│   ├── routers/              # tRPC feature routers
-│   └── *.test.ts             # Server tests
-├── shared/                   # Types and constants shared by client and server
-├── drizzle/                 # Drizzle schema, migration SQL, and migration metadata
-├── patches/                 # pnpm patched dependency sources
+│   ├── _core/              # Express bootstrap, auth, tRPC, storage, Vite, and platform adapters
+│   ├── intelis/             # Sources, Groq analysis, pipeline, scheduling, repository, and validators
+│   ├── routers/             # tRPC feature routers
+│   └── *.test.ts            # Server tests
+├── shared/                  # Types and constants shared by client and server
+├── drizzle/                # Drizzle schema and SQL migrations
+├── patches/                # pnpm patched dependency sources
 ├── index.ts                 # Root host entry that imports the Express bootstrap
-├── package.json              # Scripts, dependencies, and pnpm configuration
-├── pnpm-lock.yaml            # Locked dependency graph
-├── tsconfig.json             # TypeScript compiler configuration
-├── vite.config.ts            # Client build and Vite integration
-├── vitest.config.ts          # Test configuration
-└── vercel.json               # Static asset cache header configuration
+├── package.json             # Scripts and dependency declarations
+├── pnpm-lock.yaml           # Locked dependency graph
+├── tsconfig.json            # TypeScript configuration
+├── vite.config.ts           # Client build configuration
+├── vitest.config.ts         # Test configuration
+└── vercel.json              # Static asset cache header configuration
 ```
 
 </details>
 
-The persisted model includes users, collections, research tasks, followed entities, entity change events, research runs, findings, source snapshots, trends, reports, Ask Mode conversations and messages, delivery events, and audit logs. See `drizzle/schema.ts` for the source of truth.
+The main persisted entities are defined in `drizzle/schema.ts`: users, collections, research tasks, followed entities, change events, runs, findings, source snapshots, trends, reports, Ask Mode conversations and messages, delivery events, and audit logs.
 
-## <a name="features"></a>Features and Roadmap
+## <a name="features"></a>Features and Limitations
 
 ### Implemented
 
-- Natural-language task definition with optional LLM-derived keywords and topics.
-- Web, RSS, and NewsAPI source collection with source filtering and validation.
-- Persisted pipeline stages, run status, source counts, finding counts, and errors.
-- Finding analysis with quality, relevance, credibility, and novelty scores.
-- Verification status and source-linked evidence records.
-- Scheduled task lifecycle with manual execution and graceful `needs_activation` fallback when a platform scheduler is unavailable.
-- Summary, digest, and alert report records with in-app and email delivery tracking.
-- Entity following, change events, trends, collections, dashboard metrics, Ask Mode, PDF export, CSV export, task filtering, and theme preferences.
+- Scheduled and manual research task execution.
+- Web, RSS, and NewsAPI collection.
+- LLM-based signal derivation, analysis, summarization, semantic retrieval, and grounded answers.
+- Persisted run progress, findings, scores, verification status, reports, trends, and delivery events.
+- In-app notifications and optional Resend email delivery.
+- PDF and CSV export utilities.
+- Task, collection, entity, dashboard, and theme interfaces.
 
-### Known limitations and roadmap
+### Current limitations
 
-The application’s production scheduling path depends on a heartbeat service when deployed to the Manus environment. On third-party hosts, task creation can succeed without an attached scheduler and return `needs_activation`; manual runs continue to work, but a deployment-specific scheduler integration is required for autonomous execution. The repository does not currently include Slack or generic webhook delivery, public report sharing, or a Docker deployment definition.
+The repository does not contain a Dockerfile or Docker Compose configuration. The `vercel.json` file defines an asset-cache header but does not provision a database, environment variables, or a scheduler. On hosts without the Manus heartbeat service, tasks may require deployment-specific scheduler integration for autonomous execution; manual runs remain available.
 
 ## <a name="testing"></a>Testing
 
-Run the type checker and Vitest suite with the project’s exact scripts:
+Run the checked-in scripts:
 
 ```bash
 pnpm check
 pnpm test
+pnpm build
 ```
 
-The test suite covers client export, filtering, timing, and theme utilities; authentication logout; source collection; input contracts and validators; Groq behavior; pipeline progress and email delivery; provider credential checks; and intelligence task controls. Credential-dependent tests are present in `server/groq.credentials.test.ts` and `server/providers.credentials.test.ts`; provide the relevant integration variables only when you intentionally want to exercise live provider checks.
+The suite uses Vitest and covers client utilities, authentication logout, source collection, contracts, validators, Groq behavior, pipeline progress, email delivery, provider credentials, and intelligence task controls. The default run contains 29 tests; the live Groq, NewsAPI, and Resend checks are skipped when their credentials are not present.
 
-Formatting is available through:
+Formatting is available with:
 
 ```bash
 pnpm format
 ```
 
-The repository’s continuous integration workflow runs dependency installation, TypeScript checking, the test suite, and the production build on Node.js 22.
+The GitHub Actions workflow runs dependency installation, `pnpm check`, `pnpm test`, and `pnpm build` in a `Validate` job on Node.js 22.
 
 ## <a name="deployment"></a>Deployment
-
-### Vercel
-
-The repository includes `vercel.json` with a long-cache header for `/assets/(.*)`. It does not declare environment values, database provisioning, a cron job, or a custom Vercel function. Configure the project’s build and runtime behavior in the deployment platform according to your hosting setup, then provide the required environment variables through the platform’s secret manager.
-
-Because the application relies on a long-running Express-style server process and an external scheduler for autonomous research, verify the chosen Vercel runtime and scheduled invocation model before treating a Vercel deployment as a complete autonomous deployment. Manual task execution remains the safest validation path for a third-party host.
 
 ### Self-hosted Node.js
 
@@ -311,27 +291,38 @@ pnpm build
 NODE_ENV=production pnpm start
 ```
 
-Set `DATABASE_URL`, `GROQ_API_KEY`, `JWT_SECRET`, and any optional integration variables before starting the server. Use an external scheduler that can authenticate to `/api/scheduled/research-run` if you need autonomous runs outside the Manus heartbeat environment. Do not expose scheduler credentials to the browser.
+Set the required environment variables before starting the server. Add an external scheduler that can authenticate to `/api/scheduled/research-run` when scheduled research is needed outside the Manus heartbeat environment.
+
+### Vercel
+
+The repository contains `vercel.json` with a long-cache header for `/assets/(.*)`. It does not declare builds, functions, routes, database provisioning, or cron configuration. Verify the selected Vercel runtime and scheduling model before treating a deployment as fully autonomous.
 
 ## <a name="contributing"></a>Contributing
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The expected workflow is to create a focused branch, install with pnpm, make the smallest coherent change, run `pnpm check`, `pnpm test`, and `pnpm build`, and explain the behavior change in the pull request. Use the provided issue forms for bug reports and feature proposals.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The normal workflow is:
 
-Please do not include credentials, session tokens, private source material, generated build output, or production database data in commits, tests, screenshots, or issue reports. Review the [security policy](SECURITY.md) for vulnerability reports.
+```bash
+pnpm install
+pnpm check
+pnpm test
+pnpm build
+```
+
+Keep changes focused, preserve server-side secret handling, update documentation when behavior changes, and do not commit `.env` files, tokens, private research material, production data, or generated build output. Use the issue forms and pull-request template in `.github/`.
 
 ## <a name="security"></a>Security
 
-The server keeps provider credentials server-side, validates tRPC inputs with Zod, checks task ownership before mutations, authenticates sessions with signed JWTs, and distinguishes cron identities from regular users. The scheduled research endpoint rejects non-cron callers with HTTP `403`. These controls reduce common failure modes but do not make arbitrary scraped content trustworthy; the LLM prompts explicitly treat source material as untrusted reference text.
+The application signs and verifies session JWTs, validates tRPC inputs with Zod, checks task ownership before protected mutations, separates cron identities from regular users, and keeps provider credentials on the server. The scheduled endpoint rejects non-cron callers with HTTP `403`. Research-source content is treated as untrusted reference material by the LLM prompts.
 
-Report vulnerabilities privately through the [security advisory form](https://github.com/vincenzo-afk/Intelis-Agent/security/advisories/new) when available. If private advisories are unavailable for the repository, contact the maintainer through the [vincenzo-afk GitHub profile](https://github.com/vincenzo-afk) and avoid posting exploit details in a public issue. See [SECURITY.md](SECURITY.md) for the reporting policy.
+Report vulnerabilities privately through the [GitHub security advisory form](https://github.com/vincenzo-afk/Intelis-Agent/security/advisories/new) when available. If private advisories are unavailable, contact the maintainer through the [repository owner’s GitHub profile](https://github.com/vincenzo-afk) without posting exploit details publicly. See [SECURITY.md](SECURITY.md).
 
 ## <a name="license"></a>License
 
-Intelis-Agent is distributed under the [MIT License](LICENSE). The repository license notice attributes copyright to **BHARANI KUMAR S**.
+Intelis-Agent is licensed under the [MIT License](LICENSE).
 
 ## <a name="acknowledgments"></a>Acknowledgments
 
-The project uses [React](https://react.dev/), [Vite](https://vite.dev/), [Express](https://expressjs.com/), [tRPC](https://trpc.io/), [Drizzle ORM](https://orm.drizzle.team/), [Groq](https://groq.com/), [Resend](https://resend.com/), [NewsAPI](https://newsapi.org/), [AWS SDK for JavaScript](https://aws.amazon.com/sdk-for-javascript/), [Radix UI](https://www.radix-ui.com/), and [Vitest](https://vitest.dev/). Their licenses and terms remain the responsibility of their respective projects.
+Intelis-Agent uses open-source libraries and services including React, Vite, Express, tRPC, Drizzle ORM, Groq, Resend, NewsAPI, the AWS SDK for JavaScript, Radix UI, and Vitest. See `package.json` and the lockfile for the dependency sources and versions.
 
 ## <a name="references"></a>References
 
@@ -342,4 +333,4 @@ The project uses [React](https://react.dev/), [Vite](https://vite.dev/), [Expres
 
 ---
 
-<p align="center"><a href="#toc">Back to top</a> · <a href="https://github.com/vincenzo-afk/Intelis-Agent">GitHub repository</a> · <a href="https://github.com/vincenzo-afk">Maintainer profile</a></p>
+<p align="center"><a href="#toc">Back to top</a> · <a href="https://github.com/vincenzo-afk/Intelis-Agent">Intelis-Agent on GitHub</a></p>
